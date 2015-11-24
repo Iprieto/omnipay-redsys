@@ -1,77 +1,90 @@
 <?php
-
-namespace Omnipay\Redsys;
-
+namespace Omnipay\Sermepa;
+use Symfony\Component\HttpFoundation\Request;
 use Omnipay\Common\AbstractGateway;
-use Omnipay\Dummy\Message\AuthorizeRequest;
-
+use Omnipay\Sermepa\Message\CallbackResponse;
 /**
- * Redsys Gateway
+ * Sermepa (Redsys) Gateway
+ *
+ * @author Igor Prieto (ipechepare@gmail.com)
  */
 class Gateway extends AbstractGateway
 {
-    public function getName()
-    {
-        return 'Redsys';
-    }
-
     public function getDefaultParameters()
     {
         return array(
-            'merchantCode' => '',
-            'secretKey' => '',
-            'terminal' => 1,
-            'testMode' => false,
+            'titular' => '',
+            'consumerLanguage' => '001',
+            'currency' => '978',
+            'terminal' => '001',
+            'merchantURL' => '',
+            'merchantName' => '',
+            'transactionType' => '0',
+            'signatureMode' => 'simple',
+            'testMode' => false
         );
     }
-
-    public function getMerchantCode()
+    public function setMerchantName($merchantName)
     {
-        return $this->getParameter('merchantCode');
+        $this->setParameter('merchantName', $merchantName);
+        $this->setParameter('titular', $merchantName); //is this right??
     }
-
-    public function setMerchantCode($value)
+    public function setMerchantKey($merchantKey)
     {
-        return $this->setParameter('merchantCode', $value);
+        $this->setParameter('merchantKey', $merchantKey);
     }
-
-    public function getSecretKey()
+    public function setMerchantCode($merchantCode)
     {
-        return $this->getParameter('secretKey');
+        $this->setParameter('merchantCode', $merchantCode);
     }
-
-    public function setSecretKey($value)
+    public function setMerchantURL($merchantURL)
     {
-        return $this->setParameter('secretKey', $value);
+        $this->setParameter('merchantURL', $merchantURL);
     }
-
-    public function getTerminal()
+    public function setTerminal($terminal)
     {
-        return $this->getParameter('terminal');
+        $this->setParameter('terminal', $terminal);
     }
-
-    public function setTerminal($value)
+    public function setSignatureMode($signatureMode)
     {
-        return $this->setParameter('terminal', $value);
+        $this->setParameter('signatureMode', $signatureMode);
     }
-
-    public function getPayMethods()
+    public function setConsumerLanguage($consumerLanguage)
     {
-        return $this->getParameter('payMethods');
+        $this->setParameter('consumerLanguage', $consumerLanguage);
     }
-
-    public function setPayMethods($value)
+    public function setReturnUrl($returnUrl)
     {
-        return $this->setParameter('payMethods', $value);
+        $this->setParameter('returnUrl', $returnUrl);
     }
-
+    public function setCancelUrl($cancelUrl)
+    {
+        $this->setParameter('cancelUrl', $cancelUrl);
+    }
+    public function getName()
+    {
+        return 'Sermepa';
+    }
     public function purchase(array $parameters = array())
     {
-        return $this->createRequest('\Omnipay\Redsys\Message\PurchaseRequest', $parameters);
+        if (isset($parameters['recurrent']) && $parameters['recurrent']) {
+            return $this->createRequest('\Omnipay\Sermepa\Message\RecurrentPurchaseRequest', $parameters);
+        } else {
+            return $this->createRequest('\Omnipay\Sermepa\Message\PurchaseRequest', $parameters);
+        }
     }
-
-    public function completePurchase(array $parameters = array())
+    /**
+     *
+     * @param \Symfony\Component\HttpFoundation\Request $request
+     * @return type
+     */
+    public function checkCallbackResponse(Request $request)
     {
-        return $this->createRequest('\Omnipay\Redsys\Message\CompletePurchaseRequest', $parameters);
+        $response = new CallbackResponse($request, $this->getParameter('merchantKey'));
+        return $response->isSuccessful();
+    }
+    public function decodeCallbackResponse(Request $request)
+    {
+        return json_decode(base64_decode(strtr($request->get('Ds_MerchantParameters'), '-_', '+/')), true);
     }
 }
